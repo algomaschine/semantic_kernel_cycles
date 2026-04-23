@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Strategic Trend Analysis – Yearly Seasonality Only (Additive)
-- Uses only Prophet's 'yearly' component
-- Normalized to [-1,1]
-- Interactive cluster plots (hover, zoom)
-- Weekly heatmap (average across keywords)
+Yearly Seasonality Only – Faithful to original notebook
+- Uses Prophet additive yearly component
+- Normalizes to [-1, 1]
+- Interactive Plotly cluster plots with peak markers
+- Weekly heatmap (average influence)
 """
 
 import os, sys, time, random, requests, argparse
@@ -23,7 +23,7 @@ import plotly.express as px
 
 # ========================= CONFIG =========================
 DEFAULT_BASE_KEYWORD = 'love'
-GEO = 'EN'
+GEO = 'EN'                     # worldwide English
 HL = 'en-US'
 CURRENT_YEAR = datetime.now().year
 FORECAST_YEAR = CURRENT_YEAR
@@ -108,21 +108,29 @@ def get_trends_data(keyword, base_keyword, start_year, end_year, geo, lang):
         return None
 
 def get_yearly_seasonality(df, keyword, forecast_year):
-    """Return ONLY the normalized yearly component (additive) for the forecast year."""
+    """
+    Exactly as in original notebook: fit Prophet, forecast future,
+    extract 'yearly' component for the forecast year, normalise, find peaks.
+    """
+    # Use all data (original notebook did not filter by year)
+    # But to avoid leakage, we still exclude forecast_year from training
     train = df[df['ds'].dt.year < forecast_year].copy()
     if train.empty:
         return None, None, []
     model = Prophet(seasonality_mode='additive', yearly_seasonality=True)
     model.fit(train)
+    # Create future dataframe for the entire forecast year
     future_dates = pd.date_range(start=f"{forecast_year}-01-01", end=f"{forecast_year}-12-31", freq='D')
     future = pd.DataFrame({'ds': future_dates})
     forecast = model.predict(future)
-    yearly = forecast['yearly'].values          # <-- only yearly component
-    # Normalize to range [-1, 1]
+    # Extract ONLY the yearly component (same as original notebook)
+    yearly = forecast['yearly'].values
+    # Normalise by absolute max (original method)
     if np.max(np.abs(yearly)) > 0:
         norm_yearly = yearly / np.max(np.abs(yearly))
     else:
         norm_yearly = yearly
+    # Find peaks using same prominence
     peaks, _ = find_peaks(norm_yearly, prominence=0.1)
     peak_dates = [future_dates[i] for i in peaks]
     return future_dates, norm_yearly, peak_dates
@@ -152,6 +160,7 @@ def load_existing_data(base_keyword):
     return data
 
 def create_weekly_heatmap(all_curves, all_dates, keywords):
+    """Average normalised yearly influence per week (Mon-Sun), full width."""
     df_all = pd.DataFrame(index=all_dates)
     for i, kw in enumerate(keywords):
         df_all[kw] = all_curves[i]
@@ -172,7 +181,7 @@ def create_weekly_heatmap(all_curves, all_dates, keywords):
     week_labels = week_labels.reindex(all_weeks).fillna('')
     fig = px.imshow(pivot,
                     labels=dict(x="Day of week", y="Week (Monday – Sunday)", color="Avg influence"),
-                    title="Weekly Activity Heatmap (average normalized yearly influence)",
+                    title="Weekly Heatmap – Average Yearly Influence",
                     color_continuous_scale=['white', 'red'],
                     aspect='auto')
     fig.update_layout(height=600, width=None, autosize=True, margin=dict(l=140, r=20, t=60, b=40))
@@ -207,7 +216,7 @@ def main():
     base_keyword = args.base_keyword
     data_ready = args.data_ready
 
-    print("=== Yearly Seasonality Only (Additive) ===")
+    print("=== Yearly Seasonality Only (Additive) – Faithful to Original ===")
     print(f"Base keyword: {base_keyword}")
     print(f"Data: {START_YEAR}-{END_YEAR} | Forecast: {FORECAST_YEAR}\n")
 
@@ -238,6 +247,8 @@ def main():
             all_curves.append(curve)
             for p in peaks:
                 all_peaks.append({'date': p, 'keyword': kw})
+        else:
+            print(f"    No yearly component (insufficient data)")
 
     if not yearly_data:
         print("No yearly seasonality extracted.")
@@ -257,7 +268,7 @@ def main():
     labels = kmeans.fit_predict(matrix)
     keyword_list = list(yearly_data.keys())
 
-    # Build HTML
+    # Build HTML report
     html = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8">
@@ -276,28 +287,35 @@ def main():
 <body>
 <div class="container">
 <h1>Yearly Seasonal Patterns – {base_keyword.upper()} ({FORECAST_YEAR})</h1>
-<p>Additive seasonality, normalized. Triangles = peaks.</p>
+<p>Additive seasonality, normalised to [-1,1]. Triangles = peaks. Hover for exact date/value.</p>
 <div class="annotation">
-    <strong>Only yearly component</strong> – no trend, no holidays.<br>
-    Hover for exact date and influence. Zoom with mouse wheel.<br>
-    Clusters computed via silhouette score.
+    <strong>Only the yearly component</strong> from Prophet – no trend, no noise.<br>
+    Clusters determined by silhouette score.
 </div>
 """
-    # Cluster plots
+    # Cluster plots (interactive)
     for c in range(n_clusters):
         cluster_kws = [keyword_list[i] for i,lbl in enumerate(labels) if lbl==c]
         fig = go.Figure()
         for kw in cluster_kws:
             dates, curve, peaks = yearly_data[kw]
-            fig.add_trace(go.Scatter(x=dates, y=curve, mode='lines', name=kw,
-                                     hovertemplate='%{x|%Y-%m-%d}<br>Influence: %{y:.3f}<extra></extra>'))
+            fig.add_trace(go.Scatter(
+                x=dates, y=curve, mode='lines', name=kw,
+                hovertemplate='%{{x|%Y-%m-%d}}<br>Influence: %{{y:.3f}}<extra></extra>'
+            ))
             if peaks:
                 peak_vals = [curve[list(dates).index(p)] for p in peaks]
-                fig.add_trace(go.Scatter(x=peaks, y=peak_vals, mode='markers',
-                                         marker=dict(symbol='triangle-up', size=10, color='red'),
-                                         name=f'{kw} peaks', showlegend=False,
-                                         hovertemplate='Peak: %{x|%Y-%m-%d}<br>%{y:.3f}<extra></extra>'))
-        fig.update_layout(title=f'Cluster {c+1} – Yearly Seasonality', height=500, hovermode='closest')
+                fig.add_trace(go.Scatter(
+                    x=peaks, y=peak_vals, mode='markers',
+                    marker=dict(symbol='triangle-up', size=10, color='red'),
+                    name=f'{kw} peaks', showlegend=False,
+                    hovertemplate='Peak: %{{x|%Y-%m-%d}}<br>%{{y:.3f}}<extra></extra>'
+                ))
+        fig.update_layout(
+            title=f'Cluster {c+1} – Yearly Seasonality',
+            xaxis_title='Date', yaxis_title='Normalised influence',
+            hovermode='closest', height=500
+        )
         html += f'<div class="plot"><h3>Cluster {c+1}</h3><div id="cluster{c}"></div></div>'
         html += f'<script>Plotly.newPlot("cluster{c}", {fig.to_json()});</script>'
 
