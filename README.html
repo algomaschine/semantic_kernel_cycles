@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>README.md – Strategic Trend Analysis</title>
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Courier New', monospace;
+            font-size: 14px;
+        }
+        code {
+            font-family: monospace;
+            background: #f6f8fa;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        h1, h2, h3 {
+            color: #1a237e;
+        }
+        hr {
+            margin: 24px 0;
+            border: none;
+            border-top: 1px solid #e0e0e0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background: #3f51b5;
+            color: white;
+        }
+        .copy-btn {
+            background: #3f51b5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .copy-btn:hover {
+            background: #1a237e;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <button class="copy-btn" onclick="copyContent()">📋 Copy README.md content</button>
+    <div id="readme-content">
+        <h1>Strategic Trend Analysis Pipeline</h1>
+
+        <p>This tool downloads Google Trends data for a <strong>semantic core</strong> of keywords (expanded from a base word like <code>love</code>), forecasts yearly seasonality patterns using <strong>Facebook Prophet</strong>, clusters similar patterns, and generates an <strong>interactive HTML report</strong> with zoomable daily charts, a weekly activity heatmap, and peak tables.</p>
+
+        <p>The pipeline is fully <strong>local</strong>, caches downloaded data as CSV files, and supports a <code>--data-ready</code> mode to reuse cached data without re‑downloading.</p>
+
+        <hr>
+
+        <h2>✨ Features</h2>
+        <ul>
+            <li><strong>Semantic expansion</strong> – DataMuse + Google Trends suggestions.</li>
+            <li><strong>Local CSV caching</strong> – <code>data/{base_keyword}/{keyword}.csv</code>.</li>
+            <li><strong>Prophet forecasting</strong> – Additive yearly seasonality, normalised.</li>
+            <li><strong>Peak detection</strong> – <code>scipy.signal.find_peaks</code> (prominence ≥ 0.1).</li>
+            <li><strong>Optimal clustering</strong> – K‑Means with silhouette score.</li>
+            <li><strong>Interactive HTML report</strong> – cluster plots, weekly heatmap, peak tables.</li>
+            <li><strong><code>--data-ready</code></strong> – reuses cached data, no API calls.</li>
+        </ul>
+
+        <hr>
+
+        <h2>📦 Requirements</h2>
+        <ul>
+            <li>Python 3.8+</li>
+            <li>Install: <code>pip install pandas numpy scipy scikit-learn pytrends prophet requests urllib3 plotly</code></li>
+        </ul>
+        <blockquote><strong>Note</strong>: On some systems, <code>pystan==2.19.1.1</code> may be needed before <code>prophet</code>.</blockquote>
+
+        <hr>
+
+        <h2>🛠 Installation &amp; Usage</h2>
+        <ol>
+            <li>Save the script as <code>full_analysis.py</code>.</li>
+            <li>Install dependencies (see above).</li>
+            <li>Run:
+                <pre>python full_analysis.py --base-keyword love</pre>
+            </li>
+            <li>Second run (use cached data):
+                <pre>python full_analysis.py --base-keyword love --data-ready</pre>
+            </li>
+        </ol>
+        <p>Output: <code>Full_Analysis_love_2026.html</code></p>
+
+        <hr>
+
+        <h2>📂 Output Structure</h2>
+        <pre>
+data/
+└── love/
+    ├── love.csv
+    ├── affection.csv
+    └── ...
+Full_Analysis_love_2026.html</pre>
+
+        <hr>
+
+        <h2>📊 Understanding the Report</h2>
+        <ul>
+            <li><strong>Cluster plots</strong> – daily normalised curves, red triangles = peaks. Hover, zoom.</li>
+            <li><strong>Weekly heatmap</strong> – average influence per weekday/week. Week ranges inside Monday column.</li>
+            <li><strong>Keyword vs Month table</strong> – exact peak dates (DD/MM).</li>
+            <li><strong>All predicted peak dates</strong> – chronological list.</li>
+        </ul>
+
+        <hr>
+
+        <h2>⚙️ Configuration (edit in script)</h2>
+        <table>
+            <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>GEO</code></td><td><code>'EN'</code></td><td>Worldwide English</td></tr>
+                <tr><td><code>TIMEFRAME</code></td><td><code>'today 7-y'</code></td><td>Data history</td></tr>
+                <tr><td><code>MIN_SLEEP_BETWEEN_KEYWORDS</code></td><td><code>40</code></td><td>Delay to avoid 429</td></tr>
+            </tbody>
+        </table>
+
+        <hr>
+
+        <h2>🧠 How It Works</h2>
+        <ol>
+            <li>Expands base keyword into semantic core.</li>
+            <li>Downloads/caches Trends data.</li>
+            <li>Trains Prophet (additive yearly seasonality) on all data.</li>
+            <li>Extracts &amp; normalises yearly component for forecast year.</li>
+            <li>Detects peaks.</li>
+            <li>Clusters curves (silhouette, 2–6 clusters).</li>
+            <li>Generates HTML report with Plotly.</li>
+        </ol>
+
+        <hr>
+
+        <h2>⚠️ Rate Limiting</h2>
+        <p>Google Trends enforces strict limits. The script waits 40‑60 seconds between keywords. Use <code>--data-ready</code> after the first run to avoid further downloads.</p>
+
+        <hr>
+
+        <h2>📄 License</h2>
+        <p>Educational / research use. Respect Google’s Terms of Service.</p>
+
+        <hr>
+
+        <h2>👤 Author</h2>
+        <p><strong>Eduard Samokhvalov</strong> – <a href="mailto:edward.samokhvalov@gmail.com">edward.samokhvalov@gmail.com</a><br>
+        Telegram: @EduardSam<br>
+        GitHub: <a href="https://github.com/algomaschine">github.com/algomaschine</a></p>
+    </div>
+</div>
+
+<script>
+    function copyContent() {
+        const text = document.getElementById('readme-content').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('README.md content copied to clipboard!');
+        }).catch(() => {
+            alert('Failed to copy. You can manually select and copy.');
+        });
+    }
+</script>
+</body>
+</html>
