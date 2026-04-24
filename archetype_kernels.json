@@ -1,0 +1,14 @@
+{
+"innocent": ["purity", "trust", "faith", "simplicity", "hope", "safety", "wonder"],
+"orphan": ["abandonment", "loneliness", "vulnerability", "grief", "survival", "isolation", "loss"],
+"warrior": ["courage", "battle", "discipline", "strength", "honor", "victory", "resilience"],
+"caregiver": ["compassion", "empathy", "support", "care", "generosity", "sacrifice", "service"],
+"seeker": ["adventure", "freedom", "journey", "purpose", "meaning", "discovery", "exploration"],
+"lover": ["passion", "intimacy", "devotion", "romance", "desire", "attraction", "pleasure"],
+"destroyer": ["destruction", "chaos", "rebellion", "disaster", "anarchy", "ruin", "upheaval"],
+"creator": ["creativity", "imagination", "innovation", "design", "art", "inspiration", "expression"],
+"ruler": ["leadership", "authority", "power", "control", "order", "responsibility", "structure"],
+"magician": ["transformation", "intuition", "magic", "mystery", "healing", "manifestation"],
+"sage": ["wisdom", "knowledge", "insight", "truth", "clarity", "understanding", "reflection"],
+"jester": ["joy", "humor", "fun", "entertainment", "laughter", "comedy", "amusement"]
+}
