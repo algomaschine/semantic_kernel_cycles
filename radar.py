@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Full‑screen radar charts (daily + weekly) for all archetypes (2026 forecast).
+Full‑screen radar charts (daily + weekly + monthly) for all archetypes (2026 forecast).
 Uses multiplicative/additive seasonality per keyword based on stationarity.
-Generates both daily and weekly polar overlays and individual grids.
+Generates overlay and individual grid charts for each time grain.
+Also exports monthly seasonality curves and peak values for easy insight generation.
 """
 
 import os
@@ -92,10 +93,7 @@ def average_archetype_curve(df, keyword_columns, archetype_name):
 
 
 def daily_to_weekly(dates, curve):
-    """
-    Aggregate daily normalized curve to weekly means.
-    Returns ordered week numbers and mean curve per week.
-    """
+    """Aggregate daily normalized curve to weekly means (ISO weeks)."""
     df = pd.DataFrame({'ds': pd.to_datetime(dates), 'value': curve})
     df['week'] = df['ds'].dt.isocalendar().week.astype(int)
     weekly = df.groupby('week')['value'].mean()
@@ -104,17 +102,33 @@ def daily_to_weekly(dates, curve):
     return weeks, weekly_curve
 
 
+def daily_to_monthly(dates, curve):
+    """Aggregate daily normalized curve to monthly means."""
+    df = pd.DataFrame({'ds': pd.to_datetime(dates), 'value': curve})
+    df['month'] = df['ds'].dt.month
+    monthly = df.groupby('month')['value'].mean()
+    months = list(range(1, 13))
+    monthly_curve = monthly.loc[months].values
+    return months, monthly_curve
+
+
 def create_overlay_fig(all_data, time_grain='daily'):
-    """Polar overlay figure (all archetypes). time_grain='daily' or 'weekly'."""
+    """Polar overlay figure (all archetypes). time_grain in {'daily','weekly','monthly'}."""
     if time_grain == 'daily':
         dates = all_data[0][1]
         theta = [(d.timetuple().tm_yday - 1) * 360 / len(dates) for d in pd.DatetimeIndex(dates).to_pydatetime()]
         month_angles, month_labels = _get_month_ticks_daily(dates)
-    else:  # weekly
-        weeks = all_data[0][1]  # now it's the list of week numbers
+    elif time_grain == 'weekly':
+        weeks = all_data[0][1]  # list of week numbers
         n_weeks = len(weeks)
         theta = [(i * 360 / n_weeks) for i in range(n_weeks)]
         month_angles, month_labels = _get_month_ticks_weekly(weeks, FORECAST_YEAR)
+    else:  # monthly
+        n_months = len(all_data[0][1])  # should be 12
+        theta = [(i * 360 / n_months) for i in range(n_months)]
+        month_angles = theta[:]  # direct month angles
+        month_labels = ['Jan','Feb','Mar','Apr','May','Jun',
+                        'Jul','Aug','Sep','Oct','Nov','Dec']
 
     fig = go.Figure()
     for idx, (arch, _, curve) in enumerate(all_data):
@@ -127,8 +141,10 @@ def create_overlay_fig(all_data, time_grain='daily'):
             fill='toself',
             opacity=0.3,
             hovertemplate=f'{arch.capitalize()}<br>' +
-                          (f'Day: %{{theta}}°<br>' if time_grain == 'daily' else f'Week: %{{theta}}°<br>') +
-                          f'Influence: %{{r:.3f}}<extra></extra>'
+                          (f'Day: %{{theta}}°' if time_grain == 'daily' else
+                           f'Week: %{{theta}}°' if time_grain == 'weekly' else
+                           f'Month: %{{theta}}°') +
+                          f'<br>Influence: %{{r:.3f}}<extra></extra>'
         ))
 
     fig.update_layout(
@@ -165,11 +181,17 @@ def create_individual_fig(all_data, time_grain='daily'):
         dates = all_data[0][1]
         theta = [(d.timetuple().tm_yday - 1) * 360 / len(dates) for d in pd.DatetimeIndex(dates).to_pydatetime()]
         month_angles, month_labels = _get_month_ticks_daily(dates)
-    else:
+    elif time_grain == 'weekly':
         weeks = all_data[0][1]
         n_weeks = len(weeks)
         theta = [(i * 360 / n_weeks) for i in range(n_weeks)]
         month_angles, month_labels = _get_month_ticks_weekly(weeks, FORECAST_YEAR)
+    else:  # monthly
+        n_months = len(all_data[0][1])
+        theta = [(i * 360 / n_months) for i in range(n_months)]
+        month_angles = theta[:]
+        month_labels = ['Jan','Feb','Mar','Apr','May','Jun',
+                        'Jul','Aug','Sep','Oct','Nov','Dec']
 
     n_archetypes = len(all_data)
     cols = 4
@@ -231,24 +253,19 @@ def _get_month_ticks_daily(dates):
 
 
 def _get_month_ticks_weekly(week_numbers, year):
-    """
-    Return month label angles for weekly polar chart.
-    Places label at the week containing the 15th of each month.
-    """
+    """Return month label angles for weekly polar chart (week containing the 15th)."""
     month_labels = ['Jan','Feb','Mar','Apr','May','Jun',
                     'Jul','Aug','Sep','Oct','Nov','Dec']
     month_angles = []
     for month in range(1, 13):
         mid_date = pd.Timestamp(f'{year}-{month:02d}-15')
         week_of_mid = mid_date.isocalendar().week
-        # find the index of this week in week_numbers
-        try:
+        if week_of_mid in week_numbers:
             idx = week_numbers.index(week_of_mid)
-            angle = idx * 360 / len(week_numbers)
-        except ValueError:
-            # if week not present (unlikely), use nearest
+        else:
+            # nearest week
             idx = min(range(len(week_numbers)), key=lambda i: abs(week_numbers[i]-week_of_mid))
-            angle = idx * 360 / len(week_numbers)
+        angle = idx * 360 / len(week_numbers)
         month_angles.append(angle)
     return month_angles, month_labels
 
@@ -280,7 +297,7 @@ def save_html(fig, filename, title):
 
 
 def save_individual_html(fig, filename, title):
-    """Save the grid chart to a responsive HTML file."""
+    """Save grid chart to responsive HTML."""
     html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -309,7 +326,7 @@ def main():
     with open(KERNEL_FILE, 'r', encoding='utf-8') as f:
         kernel_map = json.load(f)
 
-    # Read and concatenate all CSV files in trends-bulk/
+    # Read and concatenate all CSV files
     if not os.path.isdir(DATA_DIR):
         print(f"Error: Folder '{DATA_DIR}' not found.")
         return
@@ -349,53 +366,94 @@ def main():
             print(f"Skipping {archetype}: no valid forecast.")
 
     if not all_data_daily:
-        print("No archetype data for daily radars.")
+        print("No archetype data for radars.")
         return
 
     # ----- Daily reports -----
-    overlay_fig_daily = create_overlay_fig(all_data_daily, time_grain='daily')
+    overlay_fig_daily = create_overlay_fig(all_data_daily, 'daily')
     save_html(overlay_fig_daily,
               "radar_overlay_all_archetypes_fullscreen.html",
               f"Archetype Overlay Radar (daily) – {FORECAST_YEAR}")
 
-    ind_fig_daily = create_individual_fig(all_data_daily, time_grain='daily')
+    ind_fig_daily = create_individual_fig(all_data_daily, 'daily')
     save_individual_html(ind_fig_daily,
                          "radar_individual_archetypes.html",
                          f"Individual Archetype Radars (daily) – {FORECAST_YEAR}")
 
-    # ----- Weekly conversion -----
-    # Use the first archetype's daily dates to define weeks
+    # ----- Weekly reports -----
     common_dates = all_data_daily[0][1]
     week_df = pd.DataFrame({'ds': pd.to_datetime(common_dates),
                             'week': pd.DatetimeIndex(common_dates).isocalendar().week})
     unique_weeks = sorted(week_df['week'].unique().tolist())
 
-    # Build weekly curves for each archetype
     all_data_weekly = []
     for arch, dates, daily_curve in all_data_daily:
         _, weekly_curve = daily_to_weekly(dates, daily_curve)
-        # Ensure consistent length (some weeks may be missing if data issue)
         if len(weekly_curve) == len(unique_weeks):
             all_data_weekly.append((arch, unique_weeks, weekly_curve))
         else:
             print(f"  Week count mismatch for {arch} – skipped weekly.")
 
     if all_data_weekly:
-        # Weekly overlay
-        overlay_fig_weekly = create_overlay_fig(all_data_weekly, time_grain='weekly')
+        overlay_fig_weekly = create_overlay_fig(all_data_weekly, 'weekly')
         save_html(overlay_fig_weekly,
                   "radar_overlay_weekly.html",
                   f"Archetype Overlay Radar (weekly) – {FORECAST_YEAR}")
 
-        # Weekly individual grid
-        ind_fig_weekly = create_individual_fig(all_data_weekly, time_grain='weekly')
+        ind_fig_weekly = create_individual_fig(all_data_weekly, 'weekly')
         save_individual_html(ind_fig_weekly,
                              "radar_individual_weekly.html",
                              f"Individual Archetype Radars (weekly) – {FORECAST_YEAR}")
     else:
         print("Weekly data could not be generated.")
 
-    print("All done!")
+    # ----- Monthly reports -----
+    all_data_monthly = []
+    for arch, dates, daily_curve in all_data_daily:
+        months, monthly_curve = daily_to_monthly(dates, daily_curve)
+        # months list is always [1..12]
+        all_data_monthly.append((arch, months, monthly_curve))
+
+    if all_data_monthly:
+        overlay_fig_monthly = create_overlay_fig(all_data_monthly, 'monthly')
+        save_html(overlay_fig_monthly,
+                  "radar_overlay_monthly.html",
+                  f"Archetype Overlay Radar (monthly) – {FORECAST_YEAR}")
+
+        ind_fig_monthly = create_individual_fig(all_data_monthly, 'monthly')
+        save_individual_html(ind_fig_monthly,
+                             "radar_individual_monthly.html",
+                             f"Individual Archetype Radars (monthly) – {FORECAST_YEAR}")
+
+        # ---------- Save monthly curves and peaks for analysis ----------
+        # 1. Full monthly curves CSV
+        months_list = all_data_monthly[0][1]  # [1,2,...,12]
+        curves_dict = {'archetype': [arch for arch, _, _ in all_data_monthly]}
+        for i, m in enumerate(months_list):
+            curves_dict[f'month_{m:02d}'] = [curve[i] for _, _, curve in all_data_monthly]
+        curves_df = pd.DataFrame(curves_dict)
+        curves_df.to_csv('monthly_seasonality_curves.csv', index=False)
+        print("✅ Saved: monthly_seasonality_curves.csv")
+
+        # 2. Peaks CSV (max influence month + value, trough for context)
+        peak_data = []
+        for arch, mons, curve in all_data_monthly:
+            idx_max = int(np.argmax(curve))
+            idx_min = int(np.argmin(curve))
+            peak_data.append({
+                'archetype': arch,
+                'peak_month': mons[idx_max],
+                'peak_value': round(float(curve[idx_max]), 4),
+                'trough_month': mons[idx_min],
+                'trough_value': round(float(curve[idx_min]), 4)
+            })
+        peak_df = pd.DataFrame(peak_data)
+        peak_df.to_csv('monthly_peaks.csv', index=False)
+        print("✅ Saved: monthly_peaks.csv")
+    else:
+        print("Monthly data not available.")
+
+    print("\nAll done! Generated 6 radar HTML files + 2 CSV data exports.")
 
 
 if __name__ == "__main__":
