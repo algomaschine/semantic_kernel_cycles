@@ -1,0 +1,13 @@
+archetype,peak_month,peak_value,trough_month,trough_value
+innocent,8,0.5657,11,0.3789
+orphan,2,0.5271,3,0.414
+warrior,5,0.6127,3,0.4229
+caregiver,9,0.4319,6,0.2029
+seeker,2,0.4179,4,0.2284
+lover,12,0.5952,11,0.3659
+destroyer,6,0.5098,7,0.3069
+creator,8,0.6105,11,0.2786
+ruler,2,0.7179,1,0.351
+magician,2,0.6021,3,0.4009
+sage,2,0.653,11,0.3821
+jester,9,0.6157,7,0.3807
