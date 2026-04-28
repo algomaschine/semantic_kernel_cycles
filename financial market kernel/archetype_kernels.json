@@ -1,0 +1,83 @@
+{
+  "market_bull": [
+    "profit",
+    "growth",
+    "wealth",
+    "success",
+    "breakout",
+    "rally",
+    "momentum"
+  ],
+  "market_bear": [
+    "loss",
+    "risk",
+    "crash",
+    "collapse",
+    "recession",
+    "debt",
+    "bankruptcy"
+  ],
+  "stocks": [
+    "stocks",
+    "shares",
+    "equity",
+    "dividend",
+    "index",
+    "ETF",
+    "NASDAQ"
+  ],
+  "forex": [
+    "FOREX",
+    "currency",
+    "dollar",
+    "euro",
+    "yen",
+    "pound",
+    "exchange"
+  ],
+  "commodities": [
+    "commodities",
+    "futures",
+    "copper",
+    "silver",
+    "wheat",
+    "corn",
+    "lumber"
+  ],
+  "gold": [
+    "gold",
+    "bullion",
+    "precious",
+    "ounce",
+    "karat",
+    "jewelry",
+    "reserve"
+  ],
+  "oil": [
+    "oil",
+    "crude",
+    "petroleum",
+    "barrel",
+    "OPEC",
+    "gasoline",
+    "energy"
+  ],
+  "bonds": [
+    "bonds",
+    "treasury",
+    "yield",
+    "notes",
+    "government",
+    "municipal",
+    "corporate"
+  ],
+  "real_estate": [
+    "realestate",
+    "property",
+    "mortgage",
+    "housing",
+    "rent",
+    "investment",
+    "listing"
+  ]
+}

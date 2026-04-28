@@ -1,0 +1,10 @@
+archetype,peak_month,peak_value,trough_month,trough_value
+market_bull,8,0.651,7,0.4045
+market_bear,9,0.5892,1,0.3714
+stocks,4,0.6724,7,0.3375
+forex,4,0.5852,7,0.4078
+commodities,5,0.6547,1,0.3939
+gold,10,0.5668,7,0.3413
+oil,4,0.6626,3,0.3105
+bonds,9,0.6269,7,0.3515
+real_estate,9,0.5948,1,0.3353
